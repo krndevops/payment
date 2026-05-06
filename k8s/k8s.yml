@@ -1,0 +1,58 @@
+---
+
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: payment
+  labels:
+    app: payment
+spec:
+  # modify replicas according to your case
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      initContainers:
+        - name: parameters-pull
+          image: docker.io/rkalluru/d77-parameter-store-init-container-image
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "200Mi"
+              cpu: "200m"
+            limits:
+              memory: "250Mi"
+              cpu: "250m"
+          volumeMounts:
+            - mountPath: /parameters
+              name: parameters
+          env:
+            - name: PARAMS
+              value: "dev.roboshop.payment.CART_HOST,CART_HOST dev.roboshop.payment.CART_PORT,CART_PORT dev.roboshop.payment.USER_HOST,USER_HOST dev.roboshop.payment.USER_PORT,USER_PORT dev.roboshop.payment.AMQP_HOST,AMQP_HOST dev.roboshop.payment.AMQP_USER,AMQP_USER dev.roboshop.payment.AMQP_PASS,AMQP_PASS"
+      containers:
+        - name: payment
+          image: rkalluru/d77-payment
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /parameters
+              name: parameters
+      volumes:
+        - name: parameters
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment
+spec:
+  selector:
+    app: payment
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
